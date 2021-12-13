@@ -1,0 +1,82 @@
+#!/usr/bin/env python
+import rospy
+from std_srvs.srv import Empty #source: http://wiki.ros.org/ROS/Tutorials/WritingServiceClient%28python%29
+from turtlesim.srv import TeleportAbsolute
+from turtlesim.srv import SetPen
+from turtle_control.msg import TurtleVelocity
+
+from time import sleep
+
+
+"""
+This node draws the waypoints of the homework exercise. 
+
+SERVICES:
+    draw: This service draws the waypoints used in the homwork
+
+Parameters:
+    pts: This is a list of x,y coordinates (floats)
+
+"""
+
+def draw_handle(req): #source : http://wiki.ros.org/turtlesim
+    """Handle for drawing the waypoints.
+    
+    Args: No args (empty)
+
+    Returns: Empty
+
+    """
+    tele = rospy.ServiceProxy('/turtle1/teleport_absolute', TeleportAbsolute)
+    erase = rospy.ServiceProxy('clear', Empty) #https://answers.ros.org/question/372520/resetting-turtlesim-programmatically-in-python/
+    penset = rospy.ServiceProxy('/turtle1/set_pen', SetPen)
+    
+    erase()
+    
+    pts = rospy.get_param("pts") #load the waypoints, source : http://wiki.ros.org/rospy/Overview/Parameter%20Server
+
+    penset(255,255,255,1,1) # marker off, source : http://wiki.ros.org/turtlesim
+    
+    tele(0,0,0)
+    
+    sleep(0.1)
+
+
+    #Draw the points 
+    for i in range(len(pts)):
+        print('the points are')
+        print(pts[i])
+        tele(pts[i][0]-0.3,pts[i][1]+0.3,0)  #source : https://www.learnbyexample.org/python-nested-list/
+        penset(255,255,255,1,0) #marker on
+        tele(pts[i][0]+0.3,pts[i][1]-0.3,0)
+        penset(255,255,255,1,1) #marker off
+        tele(pts[i][0]-0.3,pts[i][1]-0.3,0)
+        penset(255,255,255,1,0) #marker on
+        tele(pts[i][0]+0.3,pts[i][1]+0.3,0) 
+        penset(255,255,255,1,1) #marker off
+        sleep(0.1)
+    
+    tele(5,5,0) #Teleport to the middle of the screen
+    sleep(0.5)
+
+    return erase()
+
+def draw_server():
+    """
+    This is the server for the draw service. It is called draw, and is of type Empty.
+    """
+
+    draw = rospy.Service('draw',Empty,draw_handle) #source: http://wiki.ros.org/ROS/Tutorials/WritingServiceClient%28python%29
+
+
+def main():
+    """
+    This is the main function for the setup node.
+    """
+    rospy.init_node('setup')
+    draw_server()
+    rospy.spin()
+
+
+if __name__ == '__main__':
+    main()

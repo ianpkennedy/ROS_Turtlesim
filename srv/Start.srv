@@ -1,0 +1,4 @@
+float64 x #Desired teleportation x position
+float64 y #Desired teleportation y position
+---
+float64 distance #Theoretical distance traveled to final waypoint

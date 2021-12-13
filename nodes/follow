@@ -1,0 +1,172 @@
+#!/usr/bin/env python
+
+import rospy
+from math import atan, dist, sqrt
+
+from turtlesim.msg import Pose
+from std_srvs.srv import Empty
+from turtlesim.srv import TeleportAbsolute
+from turtle_control.srv import Draw
+from turtle_control.srv import Start, StartResponse
+from geometry_msgs.msg import Twist, Vector3
+from turtle_control.msg import TurtleVelocity
+
+"""
+This node implements the restart server, which draws the waypoints and sets the turtle upon the waypoint path. It also relies on a 
+the "ind" parameter in order to access the appopriate waypoint to drive towards.
+
+PUBLISHERS:
+    The node publishes a turtle_cmd topic of type TurtleVelocity for the translate node
+
+SUBSCRIBERS:
+        
+    The node subscribes to the /turtle1/pose topic of type Pose to get positional information of the turtle in the sim
+
+SERVICES:
+
+    The nodes provides a restart service of type Start to call the draw service from setup, and to start the waypoint following        
+
+PARAMETERS:
+    ind: index parameter for waypoints
+    pts: waypoints x,y points
+
+"""
+
+
+
+
+#Positional and angular gains for turtle control:
+Kl = 1
+Ka = 1
+
+waypts = rospy.get_param("pts")
+dist_thresh = rospy.get_param("/follow/dist_thresh")
+
+
+def restart_handle(req):
+
+    """
+    This is the restart callback service. It calls draw, draws waypoints, calculates theoretical distance traveled.
+    It then teleports the turtle to the desired starting point
+
+    Args:
+    req.x: x starting point
+    req.y: y starting point
+
+    Returns:
+    Distance traveled by robot
+
+    Exceptions:
+    Returns an error if the starting point is out of bouunds
+
+    """
+    rospy.wait_for_service('/draw')
+    hndl = rospy.ServiceProxy('/draw',Empty)
+    tele = rospy.ServiceProxy('/turtle1/teleport_absolute', TeleportAbsolute)
+
+    hndl()
+    
+    i=0
+    sum=0.0
+    sumxy=0
+    
+
+    #Calculate the trajectory length
+    sumxy = (req.x-waypts[0][0])*(req.x-waypts[0][0])+(req.y-waypts[0][1])*(req.y-waypts[0][1])
+    sum = sqrt(sumxy)
+
+    while i < len(waypts)-1:
+        x1 = waypts[i][0]
+        x2 = waypts[i+1][0]
+        print(x1,x2)
+        sumx = (x2-x1)*(x2-x1)
+        y1 = waypts[i][1]
+        y2 = waypts[i+1][1]
+        sumy = (y2-y1)*(y2-y1)
+        sumxy=sqrt(sumx+sumy)
+        sum+= sumxy
+        i+=1
+
+    tele(req.x,req.y,0)
+    result = sum
+    
+    #Initiate waypoint following:
+    rospy.set_param('ind',0)
+
+    if req.x <0 or req.x>10 or req.y<0 or req.y>10: #Return an error if out of range
+        return None
+
+    return StartResponse(result) #source : https://github.com/m-elwin/me495_practices/blob/master/nodes/add_numbers
+
+def start_server():
+    """
+    This function creates the restart server, of type Start.
+    """
+    start = rospy.Service('/restart',Start,restart_handle)
+
+def sub_pose_callback(data):
+    """
+    This is the turtle1/pose subscriber callback. It subscribes to turtle1/pose of message type Pose.
+    It also publishes a turtle_cmd message of type TurtleVelocity
+    """
+    #Create publisher
+    pub = rospy.Publisher('turtle_cmd',TurtleVelocity,queue_size=10)
+
+    if rospy.get_param('ind') > -1:
+        
+        way_ind = rospy.get_param('ind')
+
+        for i in range(len(waypts)):
+
+            if i == way_ind:
+                
+                #Calculate linear and angular errors
+                ang = atan((waypts[way_ind][1] - data.y)/(waypts[way_ind][0] - data.x))
+                ex = waypts[way_ind][0] - data.x
+                ey = waypts[way_ind][1] - data.y
+                eang = ang-data.theta
+
+                delta = sqrt(ex*ex +ey*ey)
+                
+                #Normalize cmd outputs
+                cmd_lin = Kl * delta/abs(delta)
+                cmd_ang = Ka * eang/abs(eang)
+
+                if ex < 0 and ey < 0:
+                    cmd_ang = -cmd_ang
+
+
+                #Spin quickly so as to avoid infinite loop conditions
+                if ex > 0 and ey < 0:
+                    cmd_ang = 2*cmd_ang    
+            
+
+                cmd = TurtleVelocity(cmd_lin,cmd_ang)
+                pub.publish(cmd)
+
+                if delta < dist_thresh:
+                    way_ind += 1
+                    rospy.set_param('ind', way_ind)
+                    if way_ind == 5: #Loop back to start
+                        rospy.set_param('ind', 0)
+
+
+def pose_sub():
+    """
+    This is the /turtle1/pose subscriber function of type Pose
+    """
+    rospy.Subscriber('/turtle1/pose',Pose,sub_pose_callback) #source: http://wiki.ros.org/turtlesim/Tutorials/Go%20to%20Goal
+
+
+def main():
+    """
+    Main function
+    """
+    rospy.init_node('follow')
+    pose_sub()
+    start_server()
+    rospy.spin()
+
+
+if __name__ == '__main__':
+    main()

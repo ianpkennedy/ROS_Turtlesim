@@ -1,0 +1,9 @@
+<launch>
+    <rosparam file="src/turtle_control/config/waypoint.yaml" />
+    <node name="turtlesim_node" pkg="turtlesim" type="turtlesim_node" />
+    <node name="setup" pkg="turtle_control" type="setup" />
+    <node name="translate" pkg="turtle_control" type="translate" />
+    <node name="follow" pkg="turtle_control" type="follow"> 
+          <param name="dist_thresh" value="0.5"/>
+    </node>      
+</launch>

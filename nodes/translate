@@ -1,0 +1,59 @@
+#!/usr/bin/env python
+
+import rospy
+from turtle_control.msg import TurtleVelocity #source: http://wiki.ros.org/ROS/Tutorials/WritingPublisherSubscriber%28python%29
+from geometry_msgs.msg import Twist, Vector3
+
+"""
+The translate node subscribes to the turtle_cmd message, and turns it into a turtle1/cmd_vel message, which is the message type that
+drives the turtlesim turtle.
+
+SUBSCRIBERS:
+    turtle_cmd: This is the commanded angular and linear velocity published by the follow node
+
+PUBLISHERS:
+    /turtle1/pose: This is the velocity published that is recognized by the and drives the robot's linear and angular velocities    
+
+"""
+
+
+
+def sub_turtle_vel_callback(speed):
+    """
+    The turtle_cmd call back subscribes to the  /turtle1/pose and publishes this speed in the appropriate 2xVector3 format 
+    Args: speed
+        speed.x = linear velocity (x direction)
+        speed.angular = angular velocity (in the z direction)
+    
+    """
+
+    rospy.logdebug("linear is %f",speed.linear) #source: http://wiki.ros.org/rospy_tutorials/Tutorials/Logging
+    rospy.logdebug("angular is %f",speed.angular)
+    
+
+    #convert to Twist messaging format
+    turtle_speed = Twist(Vector3(speed.linear,0,0),Vector3(0,0,speed.angular))
+    
+    pub = rospy.Publisher('turtle1/cmd_vel',Twist, queue_size=10) #source: http://wiki.ros.org/ROS/Tutorials/WritingPublisherSubscriber%28python%29
+    pub.publish(turtle_speed)
+
+def sub_turtle_vel():
+    """
+    This is the turtle_cmd message subscriber. It subscribes to the turtle_cmd message
+    """
+
+    rospy.Subscriber('turtle_cmd',TurtleVelocity,sub_turtle_vel_callback)
+
+
+
+def main():
+    """
+    This is the main function
+    """
+    rospy.init_node('translate',log_level=rospy.DEBUG) #source: http://wiki.ros.org/rospy_tutorials/Tutorials/Logging
+    sub_turtle_vel()
+    rospy.spin()
+
+
+if __name__ == '__main__':
+    main()
