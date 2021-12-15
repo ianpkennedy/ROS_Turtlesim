@@ -12,6 +12,11 @@ the yaml file through the roslaunch command: src/turtle_control/config/waypoint.
 This will cause the turtle to follow points in an infinite loop.
 Link to video: https://drive.google.com/file/d/18eMbT0r-s2wkTrKHSjRVosSIJYwUYza4/view?usp=sharing
 
+
+Gif:
+
+![alt-text](https://github.com/ianpkennedy/ROS_Turtlesim/blob/main/giphy.gif)
+
 Source for YAML file writing: http://wiki.ros.org/rosparam#YAML_Format
 
 Launch file parameter file loading source: https://roboticsbackend.com/ros-param-yaml-format/#Loading_params_from_a_YAML_file
